@@ -13,6 +13,40 @@ https://pandaychen.github.io/2019/10/20/ETCD-BEST-PRACTISE/
 ### k8s sth
 https://www.huweihuang.com/kubernetes-notes/etcd/etcdctl-v3.html
 
+
+### etcd直观架构
+![ETCD1](https://img-blog.csdnimg.cn/20210907103144477.png)
+
+#### 串行读和线性度 (Serializable Read & Linearizable Read)
+
+	<Serializable Read>
+Leader收到写请求，降请求持久化到WAL日志，并广播到各节点，若一半以上节点持久化成功，
+该请求对应的日志条目标记为已提交，etcdserver 模块异步从 Raft 模块获取已提交的日志条目，应用到状态机 (boltdb 等)。
+如果读请求到某节点，该节点IO延时，可能会读到旧数据。
+
+	<Linearizable Read>
+
+ReadIndex, 每个Node都持久化了 RAFT_INDEX, RAFT_APPLIED_INDEX.
+
+线性请求假如发到了节点C，首先要从 Leader 获取集群最新的已提交的日志索引 (confirmedIndex)，Leader 收到 ReadIndex 请求后，
+为了防止脑裂，会向 Follower 节点发送心跳确认，一半以上节点确认 Leader 身份后才能将已提交的日志索引返回给节点C；
+节点C 则会等待，直到状态机已应用索引 (appliedIndex) 大于等于 confirmedIndex时；
+然后，通知读请求，节点C 数据已赶上 Leader，可以取状态机中访问数据了。
+
+总体而言，KVServer 模块收到线性读请求后，通过向 Raft 模块发起 ReadIndex 请求，Raft 模块将 Leader 最新提交日志索引封装在 ReadState 结构体，
+通过 channel 层层返回给线性读模块，线性读模块等待本节点状态机追赶上 Leader 进度，追赶完后，通知 KVServer 模块，与状态机中 MVCC 模块交互。
+
+### ETCD MVCC模型
+
+它核心由内存树形索引模块 (treeIndex) 和嵌入式的 KV 持久化存储库 boltdb 组成。
+
+boltdb，它是个基于 B+ tree 实现的 key-value 键值库，支持事务，提供 Get/Put 等简易 API 给 etcd 操作
+https://github.com/boltdb/bolt#getting-started
+
+revision 为 key
+value 为用户 key-value 等信息组成的结构体。
+
+
 ### 手动脚本启动
 https://www.v2ex.com/t/623362
 
@@ -171,7 +205,8 @@ https://my.oschina.net/fileoptions/blog/1633746
 	要使一个新的learner node相对比较简单：member add --learner 来添加一个learner node，此时该member只是作为一个non-voting member，并能够接收leader的logs，直至追上leader。  需要同步很久？？？
 	一旦learner追赶上leader进度后，使用“member promote”api来将该learner变成具有quorum的member
 	对于一个learner是否能够变为voting-member则需要etcd server来验证promoted request来确保安全，并保证learner已经赶上leader的进度了。
-	在etcd server没有promoted request检验之前，learner会一直作为standby node存在：Leadership不能变为leaner，并且learner不对外提供read和write（client balancer不会路由请求到learner）。也就是说learner不需要向leader发送read index请求。
+	在etcd server没有promoted request检验之前，learner会一直作为standby node存在：Leadership不能变为leaner，并且learner不对外提供read和write
+	（client balancer不会路由请求到learner）。也就是说learner不需要向leader发送read index请求。
 
 
 ### transfer leader
@@ -210,7 +245,6 @@ benchmark --endpoints=${HOST_1},${HOST_2},${HOST_3} --conns=100 --clients=1000 p
 		startEtcdOrProxyV2 (server/etcdmain/etcd.go)
 			startEtcd (server/etcdmain/etcd.go)
 				StartEtcd (server/embed/etcd.go)
-
 
 					NewServer (server/etcdserver/server.go)
 						bootstrap (server/etcdserver/server.go) 建立 member/snap快照|/wal日志目录 <暂时不展开>
@@ -385,6 +419,8 @@ benchmark --endpoints=${HOST_1},${HOST_2},${HOST_3} --conns=100 --clients=1000 p
 						 became follower at term 7
 
 
+##### 竞选规则
+
 
 ###### 总结下来
 
@@ -395,8 +431,6 @@ benchmark --endpoints=${HOST_1},${HOST_2},${HOST_3} --conns=100 --clients=1000 p
 	etcd4   follower(重启)->pre-candidate(etcd1给投过票)  follower(被etcd2 第6轮的拉票降为follower)      				follower(被etcd3 第7轮的拉票降为follower)
 
 
-### ETCD MVCC模型
-https://pandaychen.github.io/2019/10/20/ETCD-BEST-PRACTISE/
-
+#### 日志同步 (Log Replication)
 
 

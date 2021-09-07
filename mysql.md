@@ -1,8 +1,8 @@
-​
+
 ## 双主结构
 https://www.modb.pro/db/11525
 
-## Mysql复制过滤 
+## Mysql复制过滤
 以下配置参数，可以设置需要复制或过滤的库表
 
 	binlog_ignore_db
