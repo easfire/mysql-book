@@ -90,3 +90,29 @@ net.ipv4.tcp_max_tw_buckets = 5000
 
 
 /etc/sysctl.conf是一个允许改变正在运行中的Linux系统的接口，它包含一些TCP/IP堆栈和虚拟内存系统的高级选项，修改内核参数永久生效。
+
+
+### LVM管理
+https://www.dwhd.org/20150521_225146.html
+
+Striped Logic Volume
+Striped LV的底层存储布局类似于RAID0，它是跨多个PV的，具体是跨多少个PV用-i指定，但是肯定不能超过VG中PV的数量，Striped LV的最大size取决于剩余PE最少的那个PV。
+
+Striping的意思是将每个参与Striping的PV划分成等大小的chunk（也叫做stripe unit），每个PV同一位置的这些chunk共同组成一个stripe。比如下面这张图（来自于RedHat6官方文档），包含三个PV，那么红色标识的1、2、3这3个chunk就组成了stripe1，4、5、6组成stripe2。chunk的大小可以通过-I或者--stripesize来指定，但是不能超过PE的大小。
+
+比如，向Striped LV写入数据时，数据被分成等大小的chunk，然后将这些chunk顺序写入这些PV中。这样的话就会有多个底层disk drive并发处理I/O请求，可以得到成倍的聚合I/O性能。还是下面这张图，假如现在有一个4M数据块需要写入LV，stripesize设置的512K，LVM把它切成8个chunk，分别标识为chunk1、chunk2...，这些chunk写入PV的顺序如下：
+
+chunk1写入PV1
+chunk2写入PV2
+chunk3写入PV3
+chunk4写入PV1
+...
+
+
+因为LVM无法判断多个Physics Volume是否来自同一个底层disk，如果Striped LV使用的多个Physics Volume实际上是同一个物理磁盘上的不同分区，就会导致一个数据块被切成多个chunk分多次发给同一个disk drive，这种情况实际上Striped LV并不能提升性能，反而会使性能下降。所以说，Striped LV提升I/O性能的本质是让多个底层disk drive并行处理I/O请求，而不是表面上的把I/O分散到了多个PV上。
+
+Striped LV主要满足性能需求，没有做任何冗余，所以没有容错能力，如果单个disk损坏，就会导致数据损坏。
+
+root@hunk-virtual-machine:/home# lvcreate -L 20G --stripes 4 --stripesize 256 --name stripevol VolGroup1
+ 
+

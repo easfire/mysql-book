@@ -162,3 +162,8 @@ curl -H "Content-type: application/json" -X POST -d @- --trace-ascii - "http://i
 }
 EOF
 
+
+
+{"level":"warn","ts":"2021-08-31T16:46:07.724+0800","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_RAFT_MESSAGE","remote-peer-id":"377dc93fec39b162","rtt":"0s","error":"dial tcp [::1]:2381: connect: connection refused"}
+{"level":"warn","ts":"2021-08-31T16:46:07.724+0800","caller":"rafthttp/probing_status.go:68","msg":"prober detected unhealthy status","round-tripper-name":"ROUND_TRIPPER_SNAPSHOT","remote-peer-id":"377dc93fec39b162","rtt":"0s","error":"dial tcp [::1]:2381: connect: connection refused"}
+

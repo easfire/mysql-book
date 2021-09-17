@@ -87,8 +87,6 @@ https://cloud.tencent.com/developer/article/1558721
 ### Mysql分区
 https://www.cnblogs.com/wushaopei/p/11750541.html
 
-LVM管理
-https://www.dwhd.org/20150521_225146.html
 
 ### Mysql的ACID
 https://www.cnblogs.com/xuanzhi201111/p/4103696.html
@@ -228,7 +226,7 @@ InnoDB为每个**事务**都构建了一个数组，保存事务启动瞬间，�
 - 当前读
 	- 而当事务更新数据的时候，只能用当前读
 - 行锁
-	- 如果当前记录的航所被其他事务占用，就需要进入锁等待
+	- 如果当前记录的行锁被其他事务占用，就需要进入锁等待
 
 接下来再理解一下RC和RR
 + 在RR隔离级别下，只需要在事务开始时刻创建一致性视图，之后事务里的其他查询都共用这个一致性视图
@@ -238,5 +236,102 @@ InnoDB为每个**事务**都构建了一个数组，保存事务启动瞬间，�
 
 		select * from t where id = 1 lock in share mode;
 		select * from t where id = 1 for update;
+
+### S锁 X锁
+https://segmentfault.com/a/1190000015210634
+
+
+### binlog/redolog 落盘时机
+
+初步理解落盘顺序:
+
+	1> redolog prepare
+	2> binlog write/fsync
+	3> commit
+
+binlog
+	sync_binlog
+		枚举值
+		1: 每次 commit fsync 到磁盘
+redolog
+	innodb_flush_log_at_trx_commit
+		枚举值
+		2: 每次 commit 只需写到 page_cache 
+
+	redolog存储过程:
+	1、写redolog buffer内存
+	2、write 文件系统page_cache
+	3、fsync到磁盘
+		步骤1、2 都很快。
+
+	什么实际redolog会落盘?
+	1> Innodb 后台进程 每秒一次刷把 redo log buffer， write 到 page_cache，再 fsync 到磁盘.
+	2> 另外两种写 page_cache 的情况:
+		1、redo log buffer 占到 innodb_log_buffer_size 一半，后台 write 到 page_cache.
+		2、并行事务提交，
+			事务A 	  	redo log 写 buffer
+			事务B		commit (把事务A的redo log 也落盘) <innodb_flush_log_at_trx_commit = 1>
+			---------------
+	>> 所以 InnoDB任务 redolog commit的时候，不需要再刷盘。
+
+
+udb innodb_flush_log_at_trx_commit = 2; 降低磁盘IO
+
+
+如果 双1， 那岂不是，每次事务提交都会产生两次磁盘写IO，
+
+group commit 组提交的概念。 事务合并[概念] --- 类似etcd的批量事务一次性提交。
+
+LSN (log sequence number) 每写入length长度的redo log， LSN增加length; 
+LSN 也会写到InnoDB的数据页上。保证数据页不会重复写 redo log。
+
+并发事务，可以通过合并事务提交redolog，binlog，减少IO写，提高IOPS
+	
+	rtx1, rtx2, rtx3
+	--50  --120 --160
+	rtx1 作为这一组的leader，在rtx1 提交的时候，LSN < 160的redolog都落盘了。
+
+
+单线程，就不行了。
+
+为了增加一次fsync的事务组员，真是redolog、binlog落盘的过程如下
+		
+		1> redolog prepare: write
+
+		2> binlog: write
+
+		3> redolog prepare: fsync
+
+		4> binlog: fsync
+
+		5> redolog commit: write
+
+因为 步骤3的同步过程很快，所以binlog可以合并的事务组员比较少
+
+提升binlog组提交的效果
+
+	--binlog_group_commit_sync_delay=2000 延时多少微秒再fsync，也可能会加大延时
+	--binlog_group_commit_sync_no_delay_count=100 积累多少次事务binlog才fsync, 可能会延迟加大
+
+	？？参数如何配置。
+
+WAL机制似乎没有减少IO读写
+
+	1、redolog 和 binlog 都是顺序写，顺序写比随机写速度要快；
+	2、组提交还是会减少IO消耗
+
+分析到这里，我们再来回答这个问题：
+如果你的 MySQL 现在出现了性能瓶颈，而且瓶颈在 IO 上，可以通过哪些方法来提升性能呢？
+
+针对这个问题，可以考虑以下三种方法：
+
+	1> 设置 binlog_group_commit_sync_delay 和 binlog_group_commit_sync_no_delay_count 参数，减少 binlog 的写盘次数。这个方法是基于“额外的故意等待”来实现的，因此可能会增加语句的响应时间，但没有丢失数据的风险。
+	2> 将 sync_binlog 设置为大于 1 的值（比较常见是 100~1000）。这样做的风险是，主机掉电时会丢 binlog 日志。
+	3> 将 innodb_flush_log_at_trx_commit 设置为 2。这样做的风险是，主机掉电的时候会丢数据。
+
+	udb高可用 	innodb_flush_log_at_trx_commit=1 高可用binlog丢失风险更大.
+	udb单点  	innodb_flush_log_at_trx_commit=2
+
+
 
 

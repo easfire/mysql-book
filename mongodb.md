@@ -292,7 +292,6 @@ hqmongodb:OTHER> rs.conf()
       "hidden" : false,
       "priority" : 1,
       "tags" : {
-        
       },
       "slaveDelay" : NumberLong(0),
       "votes" : 1
