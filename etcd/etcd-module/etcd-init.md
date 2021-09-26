@@ -39,6 +39,10 @@ etcd-code.md
 
 	e.Server.Start()
 
+	e.servePeers()
+	e.serveClients()
+		初始化 Clients, 可以跳转到 etcd-put-get.md
+	e.serveMetrics()
 
 ### 从集群宕机恢复
 

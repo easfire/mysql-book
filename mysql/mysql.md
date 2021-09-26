@@ -250,15 +250,23 @@ https://segmentfault.com/a/1190000015210634
 	3> commit
 
 binlog
+
 	sync_binlog
 		枚举值
-		1: 每次 commit fsync 到磁盘
+		0: 每次提交事务都只 write，不 fsync;
+		1: 每次 commit fsync 到磁盘;
+		N(N>1): 每次提交事务都 write，但累积 N 个事务后才 fsync.
+
 redolog
+
 	innodb_flush_log_at_trx_commit
 		枚举值
-		2: 每次 commit 只需写到 page_cache 
+		0: 每次事务提交时都只是把 redolog 留在 redo log buffer 中;
+		1: 表示每次事务提交时都将 redo log 直接持久化到磁盘;
+		2: 每次 commit 只需写到 page_cache. 
 
-	redolog存储过程:
+redolog存储过程:
+
 	1、写redolog buffer内存
 	2、write 文件系统page_cache
 	3、fsync到磁盘
@@ -297,13 +305,9 @@ LSN 也会写到InnoDB的数据页上。保证数据页不会重复写 redo log�
 为了增加一次fsync的事务组员，真是redolog、binlog落盘的过程如下
 		
 		1> redolog prepare: write
-
 		2> binlog: write
-
 		3> redolog prepare: fsync
-
 		4> binlog: fsync
-
 		5> redolog commit: write
 
 因为 步骤3的同步过程很快，所以binlog可以合并的事务组员比较少
