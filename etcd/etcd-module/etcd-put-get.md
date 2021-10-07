@@ -98,9 +98,9 @@ etcd/raft/raft.go
 
 etcd/server/etcdserver/raft.go
 
-	func (r *raftNode) start(rh *raftReadyHandler) { // etcdserver处理 Ready对象 L157
-		for {
-			select {
+	L157 	func (r *raftNode) start(rh *raftReadyHandler) { // etcdserver处理 Ready对象
+			for {
+			  select {
 				case rd := <-r.Ready():
 				rh.updateLead(rd.SoftState.Lead)
 				rh.updateLeadership(newLeader)
@@ -110,69 +110,107 @@ etcd/server/etcdserver/raft.go
 		          notifyc:  notifyc,
 		        }
 
-		   	    updateCommittedIndex(&ap, rh)                                                                                                                                                                                         
+		   	L209  updateCommittedIndex(&ap, rh)                                                                                                                                                                                         
 		        select {
 		        case r.applyc <- ap: 
 		        case <-r.stopped:
 		          return
 		        }
+
 		        // the leader can write to its disk in parallel with replicating to the followers and them writing to their disks.
+		        // Leader 可以落盘同时并发 触发 Followers 复制操作落盘
 		        if islead {
           			r.transport.Send(r.processMessages(rd.Messages))
         		}
 
         		// Must save the snapshot file and WAL snapshot entry before saving any other entries or hardstate to ensure that recovery after a snapshot restore is possible. 
-        		r.storage.SaveSnap(rd.Snapshot)
-        		-(st *storage) SaveSnap(snap raftpb.Snapshot) { //SaveSnap saves the snapshot file to disk and writes the WAL snapshot entry.
-        			// 先写.snap文件，再写.wal
-        			st.Snapshotter.SaveSnap(snap)
-        				-- (s *Snapshotter) save() { (etcd/server/etcdserver/api/snap/snapshotter.go)
-        					err = pioutil.WriteAndSyncFile(spath, d, 0666)
-        				}
-        				--- WriteAndSyncFile{
-        					os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
-        					f.Write(data)
-        					fileutil.Fsync(f)
-        					f.Close()
-        				}
-        			st.WAL.SaveSnapshot(walsnap)
-        				-- (w *WAL) SaveSnapshot(e walpb.Snapshot) { (etcd/server/storage/wal/wal.go)
-        					w.encoder.encode(rec)
-        					--- (e *encoder) encode(rec *walpb.Record) { (etcd/server/storage/wal/encoder.go)
-        						e.bw.Write(data)
-        					}
-        					---- (pw *PageWriter) Write(p []byte) { (etcd/pkg/ioutil/pagewriter.go)
-        					}
-        					w.sync()
-        				}
+        		// 通常都是先保存快照，再落盘raftlog和state，如果宕机，保证了可以从快照恢复数据。
+
+        		if !raft.IsEmptySnap(rd.Snapshot) {
+        			L229 	r.storage.SaveSnap(rd.Snapshot)
+        		}
+	        	
+	        	--> server/etcdserver/storage.go
+
+	        		(st *storage) SaveSnap(snap raftpb.Snapshot) { //SaveSnap saves the snapshot file to disk and writes the WAL snapshot entry.
+	        			// 先写.snap文件，再写.wal, .wal 写完毕后，.snap 会清理。
+
+	        			L57  st.Snapshotter.SaveSnap(snap)
+	        				
+	        				--> etcd/server/etcdserver/api/snap/snapshotter.go
+
+	        					(s *Snapshotter) SaveSnap(snapshot raftpb.Snapshot) {
+	        						L72  s.save(&snapshot)
+		        						(s *Snapshotter) save() { 
+		        							err = pioutil.WriteAndSyncFile(spath, d, 0666)
+		        						}	
+		        					--> etcd/pkg/ioutil/util.go
+		        					 WriteAndSyncFile {
+			        					os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, perm)
+			        					f.Write(data)
+			        					fileutil.Fsync(f)
+			        					f.Close()
+		        					}
+	        					}
+	        					
+
+	        			L63  st.WAL.SaveSnapshot(walsnap)
+	        				--> etcd/server/storage/wal/wal.go
+	        					 (w *WAL) SaveSnapshot(e walpb.Snapshot) { 
+		        					L958  w.encoder.encode(rec)
+
+		        					--> etcd/server/storage/wal/encoder.go
+
+		        						(e *encoder) encode(rec *walpb.Record) {
+		        							e.bw.Write(data)
+		        						}
+
+		        					--> etcd/pkg/ioutil/pagewriter.go
+
+		        						(pw *PageWriter) Write(p []byte) {	// PageWriter implements the io.Writer interface so that writes will either be in page chunks or from flushing
+		        							// 底层 page 写逻辑，可以再看看。
+		        						}
+
+		        					L965 	w.sync()
+
+		        						(w *WAL) sync() error {
+		        							err := fileutil.Fdatasync(w.tail().File)  // Fdatasync is similar to fsync(), but does not flush modified metadata unless that metadata is needed in order to allow a subsequent data retrieval to be correctly handled
+		        							// 还做了 fsync 超时处理. 
+		        						}
+		        				}
+	        		}
+
+        		L236 	r.storage.Save(rd.HardState, rd.Entries)
+
+        		--> etcd/server/storage/wal/wal.go
+
+        			(w *WAL) Save(st raftpb.HardState, ents []raftpb.Entry) {
+	        			for i := range ents {
+	        				w.saveEntry(&ents[i]) // 存储 entries
+	        			}
+	        			w.saveState(&st)	// 存储 HardState
+	        			if mustSync {  // entsnum != 0 || st.Vote != prevst.Vote || st.Term != prevst.Term
+	        				w.sync()
+	        			}
+	        			w.cut()  // cut closes current file written and creates a new one ready to append
+        			}
+
+        		L244 if !raft.IsEmptySnap(rd.Snapshot) {		//如果还存在snapshot
+	        		L249 	r.storage.Sync()
+
+	        		// etcdserver now claim the snapshot has been persisted onto the disk
+	        		notifyc <- struct{}{}
+
+	        		// ApplySnapshot overwrites the contents of this Storage object with those of the given snapshot.
+					L257 	r.raftStorage.ApplySnapshot(rd.Snapshot)
+
+					// Release releases resources older than the given snap and are no longer needed:
+					// - releases the locks to the wal files that are older than the provided wal for the given snap.
+					// - deletes any .snap.db files that are older than the given snap
+					L261	r.storage.Release(rd.Snapshot)
         		}
 
-        		r.storage.Save(rd.HardState, rd.Entries)
-        		- (w *WAL) Save(st raftpb.HardState, ents []raftpb.Entry) {
-        			for i := range ents {
-        				w.saveEntry(&ents[i]) // 存储 entries
-        			}
-        			w.saveState(&st)	// 存储 HardState
-        			if mustSync {  // entsnum != 0 || st.Vote != prevst.Vote || st.Term != prevst.Term
-        				w.sync()
-        			}
-        			w.cut()  // cut closes current file written and creates a new one ready to append
-        		}
-
-        		r.storage.Sync()
-        		// etcdserver now claim the snapshot has been persisted onto the disk
-        		notifyc <- struct{}{}
-
-        		// ApplySnapshot overwrites the contents of this Storage object with those of the given snapshot.
-				r.raftStorage.ApplySnapshot(rd.Snapshot)
-
-				// Release releases resources older than the given snap and are no longer needed:
-				// - releases the locks to the wal files that are older than the provided wal for the given snap.
-				// - deletes any .snap.db files that are older than the given snap
-				r.storage.Release(rd.Snapshot)
-
-
-				r.raftStorage.Append(rd.Entries) //Append the new entries to storage.
+				L267 	r.raftStorage.Append(rd.Entries) //Append the new entries to storage.
 
 				if !isLead { 
 					msgs := r.processMessages(rd.Messages)
@@ -200,6 +238,8 @@ etcd/raft/node.go
 
 ·  其他副本的返回 Append entries 的 response： MsgAppResp message，会通过 node 模块的接口经过 recvc Channel（case m := <-n.recvc:） 提交给 node 模块的 coroutine；
 
+便于理解 APPLY 模块的执行内容 以及时序
+![wal_apply_mvcc](https://img-blog.csdnimg.cn/2021092917533198.png)
 
 server/etcdserver/server.go  [raft_node的上级server] 异步获取 raftNode的 applyc; applyAll 应用到 mvcc.KV
 
@@ -217,67 +257,294 @@ server/etcdserver/server.go  [raft_node的上级server] 异步获取 raftNode的
 			}
 
 		L898	(s *EtcdServer) applyAll(ep *etcdProgress, apply *apply) {
-					s.applySnapshot(ep, apply)
-					s.applyEntries(ep, apply)
-				}
+			L899	s.applySnapshot(ep, apply)
 
-		L920	(s *EtcdServer) applySnapshot(ep *etcdProgress, apply *apply) {
-				// wait for raftNode to persist snapshot onto the disk
-				<-apply.notifyc
-				newbe, err := serverstorage.OpenSnapshotBackend(s.Cfg, s.snapshotter, apply.snapshot, s.beHooks)    // 创建Etcd Db (boltdb)
+			--> L920	(s *EtcdServer) applySnapshot(ep *etcdProgress, apply *apply) {
+					// wait for raftNode to persist snapshot onto the disk
+					<-apply.notifyc
+					newbe, err := serverstorage.OpenSnapshotBackend(s.Cfg, s.snapshotter, apply.snapshot, s.beHooks)    // 创建Etcd Db (boltdb)
 
-				}
-
-				if s.lessor != nil { 	// 考虑lessor情况 always recover lessor before kv
-					s.lessor.Recover(newbe, func() lease.TxnDelete { return s.kv.Write(traceutil.TODO()) })
-				}
-
-		L975	s.kv.Restore(newbe)		// 处理 构建 Tree Index (内容比较多)
-
-		etcd/server/storage/mvcc/kvstore.go
-			L299	(s *store) Restore(b backend.Backend) {
-						s.kvindex = newTreeIndex(s.lg)
-			L320		s.restore()
+					if s.lessor != nil { 	// 考虑lessor情况 always recover lessor before kv
+						s.lessor.Recover(newbe, func() lease.TxnDelete { return s.kv.Write(traceutil.TODO()) })
 					}
-			L323	(s *store) restore() {
-						// 开始生成 revision 信息了。
-						min, max Revision
-						finishedCompact
-						scheduledCompact
 
-				L351	rkvc, revc := restoreIntoIndex(s.lg, s.kvindex)		??
-						L427	restoreIntoIndex(lg *zap.Logger, idx index) (chan<- revKeyValue, <-chan int64) {
-							rkvc, revc := make(chan revKeyValue, restoreChunkKeys), make(chan int64, 1)
-							kiCache := make(map[string]*keyIndex, restoreChunkKeys)		//TreeIndex 缓存
+				L975	s.kv.Restore(newbe)		// 处理 构建 Tree Index (内容比较多)
 
-							for rkv := range rkvc {
-								ki, ok := kiCache[rkv.kstr]
-								// purge some kiCache
-								// cache miss, fetch from tree index if there
-								if ok {
-									ki.put()	// put a revision to the keyIndex.
-								} else {
-									ki.restore()
-									idx.Insert(ki)
-									kiCache[rkv.kstr] = ki
-								}
+				--> etcd/server/storage/mvcc/kvstore.go
+					L299	(s *store) Restore(b backend.Backend) {
+								s.kvindex = newTreeIndex(s.lg)		// 新建 TreeIndex (BTree) 保存key的多版本revision
+					L320		s.restore()
 							}
+					L323	(s *store) restore() {
+								// 开始生成 revision 信息了。
+								min, max Revision
+								finishedCompact		// 最近一次压缩的revision
+								scheduledCompact
+
+						L351	rkvc, revc := restoreIntoIndex(s.lg, s.kvindex)		
+								L427	restoreIntoIndex(lg *zap.Logger, idx index) (chan<- revKeyValue, <-chan int64) {
+									// for循环 restore tree index from streaming the unordered index
+
+									rkvc, revc := make(chan revKeyValue, restoreChunkKeys), make(chan int64, 1)
+									kiCache := make(map[string]*keyIndex, restoreChunkKeys)		//TreeIndex 缓存
+
+									for rkv := range rkvc {
+										ki, ok := kiCache[rkv.kstr]
+										// purge some kiCache
+										// cache miss, fetch from tree index if there
+										if ok {
+											ki.put()	// put a revision to the keyIndex.
+										} else {
+											ki.restore()
+											idx.Insert(ki)
+											kiCache[rkv.kstr] = ki
+										}
+									}
+								}
+
+							.....
+
+							}
+
+				L979	s.consistIndex.SetBackend(newbe)	//初始化consistIndex
+						// close old backend, close txs
+
+						// v2store 不需要了?
+
+						s.cluster.SetBackend(schema.NewMembershipBackend(lg, newbe))	// UnsafeCreateBucket(Members/MembersRemoved/Cluster 等 Buckets)
+
+						s.cluster.Recover(api.UpdateCapability)		// restored cluster config
+
+						s.r.transport.RemoveAllPeers()				// recover raft transport
+
+						for range s.cluster.Members() {
+							s.r.transport.AddPeer(m.ID, m.PeerURLs)
 						}
 
-					.....
+						ep.appliedt = apply.snapshot.Metadata.Term
+						ep.appliedi = apply.snapshot.Metadata.Index
+						ep.snapi = ep.appliedi
+						ep.confState = apply.snapshot.Metadata.ConfState
 
+						type etcdProgress struct {                                                                                                                                                                                                    
+						  confState raftpb.ConfState
+						  snapi     uint64
+						  appliedt  uint64
+						  appliedi  uint64
+						} 
+				}
+
+			L900 	s.applyEntries(ep, apply)
+
+			--> L1057	(s *EtcdServer) applyEntries(ep *etcdProgress, apply *apply) {
+				  if ep.appliedt, ep.appliedi, shouldstop = s.apply(ents, &ep.confState); shouldstop {
+				    go s.stopWithDelay(10*100*time.Millisecond, fmt.Errorf("the member has been permanently removed from the cluster"))
+				  }
+
+				--> L1820	(s *EtcdServer) apply {
+								for i := range es {
+									switch e.Type {
+									    case raftpb.EntryNormal:
+									      s.applyEntryNormal(&e)
+									      s.setAppliedIndex(e.Index)
+									      s.setTerm(e.Term)
+									}
+								}
+
+					--> L1869	(s *EtcdServer) applyEntryNormal(e *raftpb.Entry) {
+									index := s.consistIndex.ConsistentIndex()	// 获取 consistent Index (如果内存没有，从BoltDB获取 consistent Index 和 Term)
+									if e.Index > index {
+										// 更新当前的 Index
+										s.consistIndex.SetConsistentIndex(e.Index, e.Term)
+									}
+									L1923	ar = s.applyV3.Apply(&raftReq, shouldApplyV3)  
+
+						etcd/server/etcdserver/apply.go 	// Apply 模块
+
+								--> L134	(a *applierV3backend) Apply(r *pb.InternalRaftRequest, shouldApplyV3 membership.ShouldApplyV3) *applyResult {
+												switch {
+													case r.Put != nil:
+														a.s.applyV3.Put(context.TODO(), nil, r.Put)
+												}
+											}
+											L250	(a *applierV3backend) Put (ctx context.Context, txn mvcc.TxnWrite, p *pb.PutRequest) {
+												// 先写trace
+												L269	txn = a.s.KV().Write(trace)	//构造Write tx
+												// 后面处理了 Ignore的参数情况
+												L301	resp.Header.Revision = txn.Put(p.Key, val, leaseID)
+											}
+
+						etcd/server/storage/mvcc/kvstore_txn.go		// 终于进入Mvcc 存储模块
+
+								--> L108 	(tw *storeTxnWrite) Put(key, value []byte, lease lease.LeaseID) {
+												tw.put(key, value, lease)
+												return tw.beginRev + 1
+											}
+											L182 	(tw *storeTxnWrite) put(key, value []byte, leaseID lease.LeaseID) {
+													// 看看 (key: revision, value: KeyValue) 写 boltdb 过程。
+													// if the key exists before, use its previous created and get its previous leaseID
+													_, created, ver, err := tw.s.kvindex.Get(key, rev)	// 如果key在 treeIndex 存在，使用它之前的 main, leaseID
+													tw.tx.UnsafeSeqPut(schema.Key, ibytes, d) 
+															// schema.Key(keyBucketName), ibytes: revision 字节流作为 Key, d: mvccpb.KeyValue().Marshal()作为 Value 
+													tw.s.kvindex.Put(key, idxRev) 	// 更新 TreeIndex.
+
+													// 最后 attach lease to kv pair
+											}
+
+						}
 					}
+			}
+			
+			// wait for the raft routine to finish the disk writes before triggering a
+			// snapshot. or applied index might be greater than the last index in raft
+			// storage, since the raft routine might be slower than apply routine.
 
-		L979	s.consistIndex.SetBackend(newbe)	//初始化consistIndex
-				// close old backend, close txs
+			// APPLY执行快照，要等WAL模块执行完毕后，再执行。
 
-				// v2store 不需要了?
+	  		L908 	<-apply.notify 
+	  		L910	s.triggerSnapshot(ep)
 
-				s.cluster.SetBackend(schema.NewMembershipBackend(lg, newbe))	// UnsafeCreateBucket(Members/MembersRemoved/Cluster)
+	  		--> (s *EtcdServer) triggerSnapshot(ep *etcdProgress) {
+
+	  				L1097 	s.snapshot(ep.appliedi, ep.confState)
+	  				--> (s *EtcdServer) snapshot(snapi uint64, confState raftpb.ConfState) {
+	  					L2033 	clone := s.v2store.Clone()	// the store for v2
+
+	  					L2043 	s.KV().Commit() 	// KV().commit() updates the consistent index in backend
+
+	  					s.GoAttach(func() { 	// 这里开启goroutine
+		  					L2048	d, err := clone.SaveNoCopy() 	// json.Marshal store 对象
+
+		  					L2054 	snap, err := s.r.raftStorage.CreateSnapshot(snapi, &confState, d)	// 创建 snapshot的 Data/MetaData
+
+		  					L2064	s.r.storage.SaveSnap(snap) 
+		  					L2067	s.r.storage.Release(snap)
+
+		  					// When sending a snapshot, etcd will pause compaction.  Pausing compaction avoids triggering a snapshot sending cycle.
+		  					L2081	if atomic.LoadInt64(&s.inflightSnapshots) != 0 {	// skip compaction since there is an inflight snapshot
+		  								return
+		  							}
+
+		  					// keep some in memory log entries for slow followers 
+		  					L2087	compacti := uint64(1)
+		  							if snapi > s.Cfg.SnapshotCatchUpEntries {	// 常量为5000, 最大吞吐量为1W，但5K足够 slow follower 去追赶 leader.
+		  								compacti = snapi - s.Cfg.SnapshotCatchUpEntries
+		  							}
+
+		  					L2092 	s.r.raftStorage.Compact(compacti)	// compact MemoryStorage{} 内存缓存.
 
 
+	  					}()
 
+	  				}
 
+	  				L1098 	ep.snapi = ep.appliedi
+	  			}
+
+	  		L911 	select {
+	  					case m := <-s.r.msgSnapC:	// 等待 leader或者follower 在 raftNode 开始 send msg， 再发送 合并snap请求。
+	  												// a chan to send/receive snapshot
+	  					/* etcd/server/etcdserver/raft.go	
+				      		  ** There are two separate data store: the store for v2, and the KV for v3. **
+						      // The msgSnap only contains the most recent snapshot of store without KV.
+						      // So we need to redirect the msgSnap to etcd server main loop for merging in the
+						      // current store snapshot and KV snapshot.
+								processMessages( raftpb.MsgSnap ( select {
+	  								case r.msgSnapC <- ms[i]:
+	  								default:
+	  							})) */
+	  					L914	merged := s.createMergedSnapshotMessage(m, ep.appliedt, ep.appliedi, ep.confState)	// 开始发送 merge snap 给follower
+
+	  						--> etcd/server/etcdserver/snapshot_merge.go
+
+	  						(s *EtcdServer) createMergedSnapshotMessage(m raftpb.Message, snapt, snapi uint64, confState raftpb.ConfState) snap.Message {	// v2 store and v3 KV
+	  							L34 	clone := s.v2store.Clone()	// get a snapshot of v2 store as []byte
+	  									clone.SaveNoCopy()
+
+	  									s.KV().Commit()		// commit kv to write metadata(for example: consistent index)
+	  									dbsnap := s.be.Snapshot()	// 构建snap send 对象，其中包含传输超时控制
+
+	  									--> etcd/server/storage/backend/backend.go
+
+	  									(b *backend) Snapshot() Snapshot {
+	  										L322	tx, err := b.db.Begin(false)	// 构建bolt tx，并带 goroutine 计时器，发送到 follower pipeline 执行，nb
+	  										L327 	stopc, donec := make(chan struct{}), make(chan struct{})
+	  										L328 	dbBytes := tx.Size()
+
+	  										go func() {
+	  											ticker := time.NewTicker(timeout) // timeout 按照 100M/s 速率计算的 dbBytes包传输超时时间
+	  											defer ticker.Stop()
+	  											for {
+	  												select {
+	  													case <-ticker.C:
+	  														warning("snapshotting taking too long to transfer")
+	  													case <-stopc:
+	  														return
+	  												}
+	  											}
+	  										}()
+	  										return &snapshot{tx, stopc, donec}
+	  									}
+
+	  									rc := newSnapshotReaderCloser(lg, dbsnap)	// get a snapshot of v3 KV as readCloser
+
+	  									--> etcd/server/etcdserver/snapshot_merge.go
+
+	  									newSnapshotReaderCloser(lg *zap.Logger, snapshot backend.Snapshot) io.ReadCloser { // 有点意思.
+	  										L62 	pr, pw := io.Pipe()		// Pipe() (*PipeReader, *PipeWriter) {} // pr,pw (io.pipe)
+	  												go func() {
+	  													L64 	n, err := snapshot.WriteTo(pw)	// (tx *Tx) WriteTo() // boltDB
+	  													L78 	pw.CloseWithError(err)			// (w *PipeWriter) CloseWithError()
+	  													L79 	err = snapshot.Close()	
+
+	  															--> etcd/server/storage/backend/backend.go
+	  															(b *backend) Close() {
+	  																close(b.stopc)
+	  																<-b.donec
+	  																return b.db.Close()
+	  															}
+	  													}()
+	  												return pr
+	  									}
+
+		  							  	snapshot := raftpb.Snapshot{
+										    Metadata: raftpb.SnapshotMetadata{
+										      Index:     snapi,
+										      Term:      snapt,
+										      ConfState: confState,
+									    	},  
+									    	Data: d,
+								  	 	}
+							  			m.Snapshot = snapshot
+
+	  									return *snap.NewMessage(m, rc, dbsnap.Size())	// m (v2 store raft.Snapshot); rc (v3 kv as readCloser)
+	  						}
+
+	  					L915	s.sendMergedSnap(merged)	// 开始send merged snap 操作
+
+	  						--> etcd/server/etcdserver/server.go
+	  						(s *EtcdServer) sendMergedSnap(merged snap.Message) {
+	  							L1778 	atomic.AddInt64(&s.inflightSnapshots, 1)	// snapshot 压缩 应该在 发送之后发生，这里添加 一个Snap暗斗.
+	  							L1789	s.r.transport.SendSnapshot(merged) 
+
+	  							--> etcd/server/etcdserver/api/rafthttp/snapshot_sender.go //直接跳到
+	  							 (s *snapshotSender) send(merged snap.Message) {
+	  							 		L75 	body := createSnapBody(s.tr.Logger, merged) 	// encode 包含 v2 store snap Byte[]
+	  							 		L79 	req := createPostRequest(s.tr.Logger, u, RaftSnapshotPrefix, body, "application/octet-stream", s.tr.URLs, s.from, s.cid)
+	  							 		L98 	s.post(req)		// 不展开 post http 模块
+	  							 		L129 	s.status.activate()
+	  							 		L130 	s.r.ReportSnapshot(m.To, raft.SnapshotFinish)
+	  								}
+	  							L1792 	s.GoAttach(func() {
+	  									select {
+	  										case ok := <-merged.CloseNotify():
+	  										case <-s.stopping:
+	  									}
+	  								})
+	  						}
+	  				}
+	  		}
+		}
 
 
 
