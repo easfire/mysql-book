@@ -13,36 +13,88 @@ etcd-code.md
 	// StartEtcd launches the etcd server and HTTP handlers for client/server communication.
 	// The returned Etcd.Server is not guaranteed to have joined the cluster.
 	// Wait on the Etcd.Server.ReadyNotify() channel to know when it completes and is ready for use.
-	---StartEtcd(inCfg *Config) (e *Etcd, err error) [server/embed/etcd.go]
+
+	etcd/server/embed/etcd.go
+	L97 	StartEtcd(inCfg *Config) (e *Etcd, err error) {
+
+				L244 	etcdserver.NewServer(srvcfg)
+				--> etcd/server/etcdserver/server.go
+
+					NewServer(cfg config.ServerConfig) (srv *EtcdServer, err error) {
+						L300 bootstrap(cfg)
+						--> etcd/server/etcdserver/bootstrap.go
+						bootstrap(cfg config.ServerConfig) (b *bootstrappedServer, err error) {
+							L70 	bootstrapSnapshot() //新建 snap快照|wal目录
+							L78 	bootstrapBackend()  //新建 backend/一致性 index/backendHook
+							....
+						}
+
+						L315 	srv = &EtcdServer{
+									v2store:            b.st,
+									snapshotter:        b.ss,
+									r: 					*b.raft.newRaftNode(b.ss), # 每个Node新建自己的 raft 状态机
+									....
+								}
+
+						--> etcd/server/etcdserver/bootstrap.go
+							(b *bootstrappedRaft) newRaftNode(ss *snap.Snapshotter, wal *wal.WAL, cl *membership.RaftCluster) *raftNode {
+								L520 	raft.StartNode(b.config, b.peers) 
+								--> etcd/raft/node.go
+									StartNode(c *Config, peers []Peer) Node {
+										L222 	NewRawNode(c)		// 初始化raft newRaft() (raft/raft.go)
+										L226 	err = rn.Bootstrap(peers)
+										L231 	n := newNode(rn)
+										L233 	go n.run()			// select 监听多种channel状态，做相应操作（Tick等）
+										-->  (n *node) run() {
+												for {
+													select {
+														case pm := <-propc:
+														case m := <-n.recvc:
+														...
+													}
+												}
+											}
+									}
+							}
+					}
+
+
+				L264 	e.Server.Start()
+				--> etcd/server/etcdserver/server.go // 直接跳到 EctdServer start()
+					(s *EtcdServer) start () {
+						L578 	go s.run()
+						--> (s *EtcdServer) run() {
+								L794 	s.r.start(rh)
+								--> etcd/server/etcdserver/raft.go
+									(r *raftNode) start(rh *raftReadyHandler) {
+										for {
+											select {
+												case rd := <-r.Ready():		// 处理put/get 请求
+											}
+										}
+									}
+
+								L829 	for {
+											select {
+												case ap := <-s.r.apply():
+												f := func(context.Context) { s.applyAll(&ep, &ap) }
+											}
+										}
+							}
+					}
+
+
+				e.servePeers()
+				e.serveClients()
+					初始化 Clients, 可以跳转到 etcd-put-get.md
+				e.serveMetrics()
+			}
 
 	// NewServer creates a new EtcdServer from the supplied configuration. 
 	// The configuration is considered static for the lifetime of the EtcdServer.
-	----NewServer (server/etcdserver/server.go)
-		-bootstrap (server/etcdserver/server.go) 
-		--bootstrapSnapshot() //新建 snap快照|wal目录
-		--bootstrapBackend()  //新建 backend/一致性 index/backendHook
 
+	
 
-		srv = &EtcdServer{
-			v2store:            b.st,
-			snapshotter:        b.ss,
-			r: 					*b.raft.newRaftNode(b.ss), # 每个Node新建自己的 raft 状态机
-			}
-
-			newRaftNode (server/etcdserver/bootstrap.go)
-				StartNode (raft/node.go)
-					NewRawNode (raft/rawnode.go)
-						newRaft (raft/raft.go)
-					Bootstrap
-					newNode
-					run() select 监听多种channel状态，做相应操作（Tick等）
-
-	e.Server.Start()
-
-	e.servePeers()
-	e.serveClients()
-		初始化 Clients, 可以跳转到 etcd-put-get.md
-	e.serveMetrics()
 
 ### 从集群宕机恢复
 

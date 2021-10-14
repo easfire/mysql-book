@@ -11,7 +11,6 @@ etcd/client/v3/client.go
 	
 	L409	client.KV = NewKV(client)
 
-
 在服务端初始化通过rpc调用api/v3rpc的接口模块。
 
 etcd/server/embed/etcd.go
@@ -94,7 +93,6 @@ etcd/raft/raft.go
 				 case ...
 			}
 	}
-
 
 etcd/server/etcdserver/raft.go
 

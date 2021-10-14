@@ -262,14 +262,14 @@ redolog
 	innodb_flush_log_at_trx_commit
 		枚举值
 		0: 每次事务提交时都只是把 redolog 留在 redo log buffer 中;
-		1: 表示每次事务提交时都将 redo log 直接持久化到磁盘;
+		1: 表示每次事务提交时都将 redolog 直接持久化到磁盘;
 		2: 每次 commit 只需写到 page_cache. 
 
 redolog存储过程:
 
-	1、写redolog buffer内存
-	2、write 文件系统page_cache
-	3、fsync到磁盘
+	1、写 redolog buffer 内存
+	2、write 文件系统 page_cache
+	3、fsync 到磁盘
 		步骤1、2 都很快。
 
 	什么实际redolog会落盘?
@@ -280,7 +280,7 @@ redolog存储过程:
 			事务A 	  	redo log 写 buffer
 			事务B		commit (把事务A的redo log 也落盘) <innodb_flush_log_at_trx_commit = 1>
 			---------------
-	>> 所以 InnoDB任务 redolog commit的时候，不需要再刷盘。
+	>> 所以 InnoDB任务 redolog commit 的时候，不需要再刷盘。
 
 
 udb innodb_flush_log_at_trx_commit = 2; 降低磁盘IO
@@ -290,19 +290,19 @@ udb innodb_flush_log_at_trx_commit = 2; 降低磁盘IO
 
 group commit 组提交的概念。 事务合并[概念] --- 类似etcd的批量事务一次性提交。
 
-LSN (log sequence number) 每写入length长度的redo log， LSN增加length; 
+LSN (log sequence number) 每写入 length 长度的 redo log， LSN增加length; 
 LSN 也会写到InnoDB的数据页上。保证数据页不会重复写 redo log。
 
 并发事务，可以通过合并事务提交redolog，binlog，减少IO写，提高IOPS
 	
 	rtx1, rtx2, rtx3
 	--50  --120 --160
-	rtx1 作为这一组的leader，在rtx1 提交的时候，LSN < 160的redolog都落盘了。
+	rtx1 作为这一组的leader，在rtx1 提交的时候，LSN < 160 的redolog都落盘了。
 
 
 单线程，就不行了。
 
-为了增加一次fsync的事务组员，真是redolog、binlog落盘的过程如下
+为了增加一次fsync的事务组员，真实 redolog、binlog落盘的过程如下
 		
 		1> redolog prepare: write
 		2> binlog: write
@@ -329,13 +329,12 @@ WAL机制似乎没有减少IO读写
 
 针对这个问题，可以考虑以下三种方法：
 
-	1> 设置 binlog_group_commit_sync_delay 和 binlog_group_commit_sync_no_delay_count 参数，减少 binlog 的写盘次数。这个方法是基于“额外的故意等待”来实现的，因此可能会增加语句的响应时间，但没有丢失数据的风险。
+	1> 设置 binlog_group_commit_sync_delay 和 binlog_group_commit_sync_no_delay_count 参数，减少 binlog 
+	   的写盘次数。这个方法是基于“额外的故意等待”来实现的，因此可能会增加语句的响应时间，但没有丢失数据的风险。
 	2> 将 sync_binlog 设置为大于 1 的值（比较常见是 100~1000）。这样做的风险是，主机掉电时会丢 binlog 日志。
 	3> 将 innodb_flush_log_at_trx_commit 设置为 2。这样做的风险是，主机掉电的时候会丢数据。
 
 	udb高可用 	innodb_flush_log_at_trx_commit=1 高可用binlog丢失风险更大.
 	udb单点  	innodb_flush_log_at_trx_commit=2
-
-
 
 

@@ -5,7 +5,7 @@ https://www.jianshu.com/p/1037fb5a63ac
 https://zhuanlan.zhihu.com/p/149885990
 https://github.com/etcd-io/etcd/blob/main/etcdctl/README.md
 https://pandaychen.github.io/2019/10/20/ETCD-BEST-PRACTISE/
-
+https://blog.didiyun.com/index.php/2019/02/27/etcd-raft/
 
 ### k8s sth
 https://www.huweihuang.com/kubernetes-notes/etcd/etcdctl-v3.html
@@ -75,7 +75,7 @@ https://my.oschina.net/fileoptions/blog/1633746
 
 	TODO: 通过add promote 添加learner，如何预先同步learner和leader的数据 ???
 	TRY1: 新增节点的属性（learner属性）会保留在节点的/data/member数据中，粗暴地删除member数据，重启；
-		  其余三节点，也报本地clusterid和远端clusterid不一致，只好重置整个集群节点的数据。
+		  其余三节点，也报本地clusterid和远端clusterid不一致，只好重置整个集群节点的 WAL 数据。
 
 ### Add member learner
 	features in v3.4
