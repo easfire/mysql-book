@@ -2,21 +2,33 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"runtime/pprof"
 	"sync"
 )
 
+//func counter() {
+//	slice := make([]int, 0)
+//	c := 1
+//	for i := 0; i < 100000; i++ {
+//		c = i + 1 + 2 + 3 + 4 + 5
+//		slice = append(slice, c)
+//
+//	}
+//
+//}
+const sliceNum = 100000
+
 func counter() {
-	slice := make([]int, 0)
+	slice := [sliceNum]int{0}
 	c := 1
-	for i := 0; i < 100000; i++ {
+	for i := 0; i < sliceNum; i++ {
 		c = i + 1 + 2 + 3 + 4 + 5
-		slice = append(slice, c)
-
+		slice[i] = c
 	}
-
+	fmt.Println(slice)
 }
 
 func workOnce(wg *sync.WaitGroup) {

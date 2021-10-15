@@ -115,4 +115,31 @@ Striped LV主要满足性能需求，没有做任何冗余，所以没有容错�
 
 root@hunk-virtual-machine:/home# lvcreate -L 20G --stripes 4 --stripesize 256 --name stripevol VolGroup1
  
+### Linux共享对象之编译参数fPIC
+https://www.cnblogs.com/cswuyg/p/3830703.html
+
+    PIC的共享对象也会有重定位表，数据段中的GOT、数据的绝对地址引用，这些都是需要重定位的。
+    readelf -r libtest.so 
+    可以看到共享对象的重定位表，.rel.dyn是对数据引用的修正，.rel.plt是对函数引用的修正。
+
+
+	Relocation section '.rela.dyn' at offset 0x450 contains 8 entries:
+	  Offset          Info           Type           Sym. Value    Sym. Name + Addend
+	000000200df8  000000000008 R_X86_64_RELATIVE                    670
+	000000200e00  000000000008 R_X86_64_RELATIVE                    630
+	000000200e10  000000000008 R_X86_64_RELATIVE                    200e10
+	000000200fd8  000100000006 R_X86_64_GLOB_DAT 0000000000000000 _ITM_deregisterTMClone + 0
+	000000200fe0  000300000006 R_X86_64_GLOB_DAT 0000000000000000 __gmon_start__ + 0
+	000000200fe8  000400000006 R_X86_64_GLOB_DAT 0000000000000000 _Jv_RegisterClasses + 0
+	000000200ff0  000500000006 R_X86_64_GLOB_DAT 0000000000000000 _ITM_registerTMCloneTa + 0
+	000000200ff8  000600000006 R_X86_64_GLOB_DAT 0000000000000000 __cxa_finalize@GLIBC_2.2.5 + 0
+
+	Relocation section '.rela.plt' at offset 0x510 contains 3 entries:
+	  Offset          Info           Type           Sym. Value    Sym. Name + Addend
+	000000201018  000200000007 R_X86_64_JUMP_SLO 0000000000000000 puts@GLIBC_2.2.5 + 0
+	000000201020  000300000007 R_X86_64_JUMP_SLO 0000000000000000 __gmon_start__ + 0
+	000000201028  000600000007 R_X86_64_JUMP_SLO 0000000000000000 __cxa_finalize@GLIBC_2.2.5 + 0
+
+
+
 
