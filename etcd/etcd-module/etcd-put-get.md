@@ -182,7 +182,7 @@ etcd/server/etcdserver/raft.go
 
         		--> etcd/server/storage/wal/wal.go
 
-        			(w *WAL) Save(st raftpb.HardState, ents []raftpb.Entry) {
+        		L912 (w *WAL) Save(st raftpb.HardState, ents []raftpb.Entry) {
 	        			for i := range ents {
 	        				w.saveEntry(&ents[i]) // 存储 entries
 	        			}
