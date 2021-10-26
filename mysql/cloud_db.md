@@ -43,8 +43,6 @@ PolarDB（这里指PolarDB For MySQL）是一个基于共享存储技术的云�
 
 
 
-
-
 ### kingbus
 https://zhuanlan.zhihu.com/p/55807044
 
@@ -53,5 +51,14 @@ https://github.com/flike/kingbus
 Thanks ***etcd*** for providing raft library.
 
 Thanks ***go-mysql*** for providing mysql replication protocol parser.
+
+
+### yunxi大会
+
+#### oceanbase
+	balabala....
+		备库不可写，浪费了备库的计算资源
+		经典事务化，单机极致化数据库
+
 
 
