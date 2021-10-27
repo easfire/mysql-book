@@ -16,10 +16,10 @@ https://www.huweihuang.com/kubernetes-notes/etcd/etcdctl-v3.html
 ![ETCD1](https://img-blog.csdnimg.cn/20210907103144477.png)
 
 
-#### 串行读和线性度 (Serializable Read & Linearizable Read)
+#### 串行读和线性读  (Serializable Read & Linearizable Read)
 
 	<Serializable Read>
-Leader收到写请求，降请求持久化到WAL日志，并广播到各节点，若一半以上节点持久化成功，
+Leader收到写请求，将请求持久化到WAL日志，并广播到各节点，若一半以上节点持久化成功，
 该请求对应的日志条目标记为已提交，etcdserver 模块异步从 Raft 模块获取已提交的日志条目，应用到状态机 (boltdb 等)。
 如果读请求到某节点，该节点IO延时，可能会读到旧数据。
 
