@@ -118,31 +118,21 @@ https://blog.csdn.net/L835311324/article/details/87455269
 
 InnoDB事务，MVCC (Multi-Version Concurrency Control) 多版本并发控制
 InnoDB每行数据，都有多个版本（多事务的多数据版本实现并发读写）
-多数据版本，其实就是通过 undo-log 回滚到历史数据版本。
+多数据版本，本质上是通过 undo-log 回滚到历史数据版本。
 
 格式可以写成  [row trx_id]
-![数据记录多事务](https://img-blog.csdnimg.cn/20210829213037630.png)
+![数据记录多事务](https://img-blog.csdnimg.cn/3d028c6896464defb8651d07edade247.png)
+
 
 看上去已经可以定义全量数据的各个版本快照了。是这样吗？
 
-从一个新创建的事务角度，看某个数据版本。按照Mysql默认RR视图规则，
-事务启动之前的，可见。之后的不可见，需要寻找上一个数据版本。
----- 但怎么可能出现之前的版本，还是这个事务的数据版本呢？？
+	从一个新创建的事务角度，看某个数据版本。
+	按照Mysql默认RR视图规则，事务启动之前的，可见。之后的不可见，需要寻找上一个数据版本。
+	---- 但怎么可能出现之前的版本，还是这个事务的数据版本呢？？
 
 InnoDB为每个**事务**都构建了一个数组，保存事务启动瞬间，当前启动未提交的“活跃”事务。
 
-					当前事务	
-					  |				  
-			  A		  |B 	  C
-			低水位	  |		高水位
-	-----------|---------------|----------------
-	已提交事务		未提交事务			未开始事务
-			   |<-	->|	
-			 当前事务的一致性视图 （consistent read-view）
-				
-
-
-![MVCC](https://img-blog.csdnimg.cn/20210829212723182.png)
+![MVCC](https://img-blog.csdnimg.cn/44e17b633a714498a23620bf31216ff7.png)
 
 	显然，row-trx_id落在B之前，对于当前事务都可见。	
 
@@ -155,7 +145,7 @@ InnoDB为每个**事务**都构建了一个数组，保存事务启动瞬间，�
 - 行锁
 	- 如果当前记录的行锁被其他事务占用，就需要进入锁等待
 
-接下来再理解一下RC和RR
+接下来再理解一下 RC(Read Committed)和 RR(Repeatable Read)
 + 在RR隔离级别下，只需要在事务开始时刻创建一致性视图，之后事务里的其他查询都共用这个一致性视图
 + 在RC隔离级别下，每个语句执行前都会重新计算一个新的视图，别的事务的Commit会被读到
 
@@ -165,41 +155,45 @@ InnoDB为每个**事务**都构建了一个数组，保存事务启动瞬间，�
 		select * from t where id = 1 for update;
 
 ### S锁 X锁
+
+共享锁【S锁】
+又称读锁，若事务T对数据对象A加上S锁，则事务T可以读A但不能修改A，其他事务只能再对A加S锁，而不能加X锁，直到T释放A上的S锁。这保证了其他事务可以读A，但在T释放A上的S锁之前不能对A做任何修改。
+排他锁【X锁】
+又称写锁。若事务T对数据对象A加上X锁，事务T可以读A也可以修改A，其他事务不能再对A加任何锁，直到T释放A上的锁。这保证了其他事务在T释放A上的锁之前不能再读取和修改A。
+
 https://segmentfault.com/a/1190000015210634
 
 
 ### binlog/redolog 落盘时机
 
-初步理解落盘顺序:
+#### 初步理解落盘顺序:
 
 	1> redolog prepare
 	2> binlog write/fsync
 	3> commit
 
-binlog
-
-	sync_binlog
+## binlog
+	参数 sync_binlog
 		枚举值
 		0: 每次提交事务都只 write，不 fsync;
 		1: 每次 commit fsync 到磁盘;
 		N(N>1): 每次提交事务都 write，但累积 N 个事务后才 fsync.
 
-redolog
-
-	innodb_flush_log_at_trx_commit
+## redolog
+	参数 innodb_flush_log_at_trx_commit
 		枚举值
 		0: 每次事务提交时都只是把 redolog 留在 redo log buffer 中;
 		1: 表示每次事务提交时都将 redolog 直接持久化到磁盘;
 		2: 每次 commit 只需写到 page_cache. 
 
-redolog存储过程:
+### redolog存储过程:
 
 	1、写 redolog buffer 内存
 	2、write 文件系统 page_cache
 	3、fsync 到磁盘
 		步骤1、2 都很快。
 
-	什么实际redolog会落盘?
+	什么时刻 redolog会落盘?
 	1> Innodb 后台进程 每秒一次刷把 redo log buffer， write 到 page_cache，再 fsync 到磁盘.
 	2> 另外两种写 page_cache 的情况:
 		1、redo log buffer 占到 innodb_log_buffer_size 一半，后台 write 到 page_cache.
@@ -215,7 +209,7 @@ udb innodb_flush_log_at_trx_commit = 2; 降低磁盘IO
 
 如果 双1， 那岂不是，每次事务提交都会产生两次磁盘写IO，
 
-group commit 组提交的概念。 事务合并[概念] --- 类似etcd的批量事务一次性提交。
+### group commit 组提交的概念。 事务合并[概念] --- 类似etcd的批量事务一次性提交。
 
 LSN (log sequence number) 每写入 length 长度的 redo log， LSN增加length; 
 LSN 也会写到InnoDB的数据页上。保证数据页不会重复写 redo log。
@@ -239,7 +233,7 @@ LSN 也会写到InnoDB的数据页上。保证数据页不会重复写 redo log�
 
 因为 步骤3的同步过程很快，所以binlog可以合并的事务组员比较少
 
-提升binlog组提交的效果
+### 提升binlog组提交的效果
 
 	--binlog_group_commit_sync_delay=2000 延时多少微秒再fsync，也可能会加大延时
 	--binlog_group_commit_sync_no_delay_count=100 积累多少次事务binlog才fsync, 可能会延迟加大

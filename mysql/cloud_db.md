@@ -12,8 +12,9 @@ https://blog.csdn.net/huangjw_806/article/details/101756681
 ### PolarDB之谜
 计算与存储分离
 PolarDB采用计算与存储分离的设计理念，满足公共云计算环境下根据业务发展弹性扩展集群的刚性需求。数据库的计算节点（Database Engine Server）仅存储元数据，
+而将数据文件、Redo Log等存储于远端的存储节点（Database Storage Server）。
 
-而将数据文件、Redo Log等存储于远端的存储节点（Database Storage Server）。各计算节点之间仅需同步Redo Log相关的元数据信息，极大降低了主节点和只读节点间的复制延迟，而且在主节点故障时，只读节点可以快速切换为主节点。
+各计算节点之间仅需同步Redo Log相关的元数据信息，极大降低了主节点和只读节点间的复制延迟，而且在主节点故障时，只读节点可以快速切换为主节点。
 
 共享分布式存储
 多个计算节点共享一份数据，而不是每个计算节点都存储一份数据，极大降低了用户的存储成本。基于全新打造的分布式块存储（Distributed Storage）和文件系统（Distributed Filesystem），存储容量可以在线平滑扩展，不会受到单个数据库服务器的存储容量限制，可应对上百TB级别的数据规模。
@@ -37,7 +38,9 @@ https://blog.csdn.net/huangjw_806/article/details/101756681
 #### PolarDB-x 仅仅是 DRDS的升级版本吗
 https://zhuanlan.zhihu.com/p/333458136
 
-DRDS，其本质是搭建在标准MySQL（阿里云上的RDS For MySQL）上的分库分表中间件，具有很高的灵活性。 PolarDB-X是使用云原生技术的分布式数据库，具有一体化的数据库体验，其存储节点是经过了高度定制的MySQL，从而提供了大量中间件无法提供的能力（使用全局MVCC的强一致的分布式事务、私有RPC协议带来的性能提升、Follower上的一致性读能力等等）。
+DRDS，其本质是搭建在标准MySQL（阿里云上的RDS For MySQL）上的分库分表中间件，具有很高的灵活性。 
+
+PolarDB-X是使用云原生技术的分布式数据库，具有一体化的数据库体验，其存储节点是经过了高度定制的MySQL，从而提供了大量中间件无法提供的能力（使用全局MVCC的强一致的分布式事务、私有RPC协议带来的性能提升、Follower上的一致性读能力等等）。
 
 PolarDB（这里指PolarDB For MySQL）是一个基于共享存储技术的云原生数据库。PolarDB在存储空间上可以做到很强的弹性能力，但一般使用情况下，其计算能力、写入能力依然存在单机的上限。
 
@@ -59,6 +62,5 @@ Thanks ***go-mysql*** for providing mysql replication protocol parser.
 	balabala....
 		备库不可写，浪费了备库的计算资源
 		经典事务化，单机极致化数据库
-
 
 

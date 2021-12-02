@@ -21,4 +21,6 @@ https://tech.ipalfish.com/blog/2020/09/08/tidb_htap/
 	如果没有发生线性读呢？
 	也就是说，再首次线性读发生后，才确保了数据的强一致性。
 
+### B-Tree
+http://users.cecs.anu.edu.au/~Alistair.Rendell/Teaching/apac_comp3600/module3/btrees.xhtml
 

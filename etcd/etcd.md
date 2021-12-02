@@ -6,6 +6,7 @@ https://zhuanlan.zhihu.com/p/149885990
 https://github.com/etcd-io/etcd/blob/main/etcdctl/README.md
 https://pandaychen.github.io/2019/10/20/ETCD-BEST-PRACTISE/
 https://blog.didiyun.com/index.php/2019/02/27/etcd-raft/
+https://www.codedump.info/post/20210628-etcd-wal/
 
 ### k8s sth
 https://www.huweihuang.com/kubernetes-notes/etcd/etcdctl-v3.html
