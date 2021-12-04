@@ -30,20 +30,24 @@ make install
 
 ###初始化mysql目录
 mkdir -p /data/mysql8 /data/mysql8/share /data/mysql8/data /data/mysql8/error /data/mysql8/log 
-cp /usr/local/mysql-8.0.26/share/english/errmsg.sys /data/mysql8/
+cp /usr/local/mysql-8.0.26/share/english/errmsg.sys /data/mysql8/share
 
 ####初始化mysql数据目录
 mysqld --initialize-insecure --user=root --basedir=/data/mysql8 --datadir=/data/mysql8/data
 
 ### run
 命令行运行，参数没有全写到 my.cnf
+[5.7] my.cnf 添加 server-id=xxx
+
 /usr/local/mysql-8.0.26/bin/mysqld --defaults-file=/data/mysql8/my.cnf --user=root --basedir=/data/mysql8 --datadir=/data/mysql8/data --socket=/data/mysql8/mysql.sock --log-error=/data/mysql8/error/errlog.sys --binlog_group_commit_sync_delay=2000 --binlog_group_commit_sync_no_delay_count=100 --skip-stack-trace &
 
 ####   gdb DEBUG方式
 1\
 gdb /usr/local/mysql/bin/mysqld
+
 加断点
 run --defaults-file=/data/mysql8/my.cnf 
+run --defaults-file=/data/mysql57/my.cnf 
 
 // 可以不加  --skip-stack-trace
 
