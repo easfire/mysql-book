@@ -132,7 +132,8 @@ InnoDB每行数据，都有多个版本（多事务的多数据版本实现并�
 
 InnoDB为每个**事务**都构建了一个数组，保存事务启动瞬间，当前启动未提交的“活跃”事务。
 
-![MVCC](https://img-blog.csdnimg.cn/44e17b633a714498a23620bf31216ff7.png)
+![MVCC](https://img-blog.csdnimg.cn/37c43d379b3c4149b86d9b60c29198d5.png)
+
 
 	显然，row-trx_id落在B之前，对于当前事务都可见。	
 
@@ -258,4 +259,5 @@ WAL机制似乎没有减少IO读写
 	udb高可用 	innodb_flush_log_at_trx_commit=1 高可用binlog丢失风险更大.
 	udb单点  	innodb_flush_log_at_trx_commit=2
 
+[MySQL5.6新特性之Multi-Range Read](https://developer.aliyun.com/article/282326)
 

@@ -1,10 +1,9 @@
 
 
 
-主干流程在 阿里内核月刊 insert 流程解析里面，已经介绍的很详细，但应该是5.7版本的
-http://mysql.taobao.org/monthly/2017/09/10/
+参考 阿里内核月刊 [MySQL · 源码分析 · 一条insert语句的执行过程](http://mysql.taobao.org/monthly/2017/09/10/)
+代码流程梳理的非常详细，这里对8.0 insert过程gdb调试跟踪了一遍，(建议用sublime打开，代码按列号收敛做得很智能.)
 
-这里对8.0版本的 insert statement Debug链路梳理了一遍。(建议用sublime打开，代码按列号收敛做得很智能.)
 
 INSERT:[8.0.26-debug]
 

@@ -33,7 +33,8 @@ mkdir -p /data/mysql8 /data/mysql8/share /data/mysql8/data /data/mysql8/error /d
 cp /usr/local/mysql-8.0.26/share/english/errmsg.sys /data/mysql8/share
 
 ####初始化mysql数据目录
-mysqld --initialize-insecure --user=root --basedir=/data/mysql8 --datadir=/data/mysql8/data
+mysqld --initialize-insecure --user=root --basedir=/data/mysql8 --datadir=/data/mysql8/data --innodb-undo-tablespaces=4
+
 
 ### run
 命令行运行，参数没有全写到 my.cnf
