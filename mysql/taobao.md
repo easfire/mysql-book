@@ -1,4 +1,3 @@
-
 ### table space
 [MySQL · 源码分析 · InnoDB的read view，回滚段和purge过程简介](http://mysql.taobao.org/monthly/2018/03/01/)
 
@@ -36,6 +35,8 @@
 
 [MySQL(InnoDB剖析):---InnoDB关键特性（插入缓冲(Insert Buffer)、两次写(doublewrite)、自适应哈希索引(AHI)、异步IO(AIO)、刷新邻接页](https://blog.csdn.net/m0_46405589/article/details/113929670)
 
+[一致性Hash算法详解](https://zhuanlan.zhihu.com/p/98030096)
+
 ### redo log
 [MySQL 8.0 redo log实现分析](https://zhuanlan.zhihu.com/p/440476383)
 
@@ -67,6 +68,14 @@
 
 [mysql innodb是如何一步步插入一条数据v2](https://www.zybuluo.com/yangsp1/note/1763634)
 
+[MySQL · 引擎特性 · InnoDB Adaptive hash index介绍](https://mp.weixin.qq.com/s/bj6Qe98lWlrd4Hv5B0sn9w)
+
+[Adaptive Hash Index 是如何建立的](http://mysql.taobao.org/monthly/2015/09/01/)
+
+[Mysql自适应哈希索引（Adaptive Hash Index）创建的条件](https://juejin.cn/post/6847902217270198286)
+
+[POLARDB · 理论基础 · 敢问路在何方 — 论B+树索引的演进方向（上）](http://mysql.taobao.org/monthly/2018/11/01/)
+
 ### 事务锁
 [MySQL · 引擎特性 · InnoDB 事务锁系统简介](http://mysql.taobao.org/monthly/2016/01/01/)
 
@@ -76,11 +85,24 @@
 
 [XA两阶段提交(2PC)分布式事务方案详解](https://cloud.tencent.com/developer/article/1791764)
 
+## XtraBackup
+[MySQL · 物理备份 · Percona XtraBackup 备份原理](http://mysql.taobao.org/monthly/2016/03/07/)
+
 ### 执行器
 [MySQL · 内核特性 · 8.0 新的火山模型执行器](http://mysql.taobao.org/monthly/2020/07/01/)
 
+### 改造实例
+[MySQL · 引擎特性 · 基于InnoDB的物理复制实现](http://mysql.taobao.org/monthly/2016/05/01/)
+
 ### gaopeng gtid
 [http://blog.itpub.net/7728585/cid-178179/list-11/](http://blog.itpub.net/7728585/cid-178179/list-11/)
+[MySQL · 引擎特性 · 基于GTID复制实现的工作原理](http://mysql.taobao.org/monthly/2020/05/09/)
 
 ### markdown
 [Markdown 基本语法](https://www.markdown.xyz/basic-syntax/#links)
+
+### Etcd
+[Raft算法原理](https://www.codedump.info/post/20180921-raft/)
+[Etcd实战课](https://time.geekbang.org/column/article/335932)
+[Etcd/Learner](https://etcd.io/docs/v3.3/learning/learner/)
+

@@ -8,8 +8,11 @@ gcc (GCC) 8.3.1 20191121 (Red Hat 8.3.1-5)
 
 ### 使用boost版本mysql编译
 #wget https://downloads.mysql.com/archives/get/p/23/file/mysql-boost-8.0.15.tar.gz
+
 #wget http://dl.bintray.com/boostorg/release/1.68.0/source/boost_1_68_0.tar.gz
+
 wget https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-boost-8.0.26.tar.gz 
+
 wget https://dev.mysql.com/get/Downloads/MySQL-5.7/mysql-boost-5.7.35.tar.gz
 
 
@@ -18,6 +21,7 @@ wget https://github.com/thkukuk/rpcsvc-proto/releases/download/v1.4/rpcsvc-proto
 #cmake3 . -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++  -DWITH_BOOST=/root/mysql-8.0.15/boost -DCMAKE_INSTALL_PREFIX=/usr/local/mysql-8.0.15 -DMYSQL_DATADIR=/data/mysql -DWITHOUT_CSV_STORAGE_ENGINE=1 -DWITHOUT_BLACKHOLD_STORAGE_ENGINE=1 -DWITHOUT_FEDERATED_STORAGE_ENGINE=1 -DWITHOUT_ARCHIVE_STORAGE_ENGINE=1 -DWITHOUT_MRG_MYISAM_STORAGE_ENGINE=1 -DWITHOUT_NDBCLUSTER_STORAGE_ENGINE=1 -DWITHOUT_TOKUDB_STORAGE_ENGINE=1 -DWITHOUT_TOKUDB=1 -DWITHOUT_ROCKSDB_STORAGE_ENGINE=1 -DWITHOUT_ROCKSDB=1 -DFORCE_INSOURCE_BUILD=1 -DWITH_SSL=system -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=1 
 
 cmake3 . -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++  -DWITH_BOOST=/data/mysql-8.0.26/boost -DCMAKE_INSTALL_PREFIX=/usr/local/mysql-8.0.26 -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=1 -DFORCE_INSOURCE_BUILD=1
+
 cmake3 . -DCMAKE_C_COMPILER=/usr/bin/gcc -DCMAKE_CXX_COMPILER=/usr/bin/g++  -DWITH_BOOST=/data/mysql-5.7.35/boost -DCMAKE_INSTALL_PREFIX=/usr/local/mysql-5.7.35 -DCMAKE_BUILD_TYPE=Debug -DWITH_DEBUG=1 -DFORCE_INSOURCE_BUILD=1
 
 #### 辅助工具
@@ -25,6 +29,7 @@ wget https://github.com/thkukuk/rpcsvc-proto/releases/download/v1.4/rpcsvc-proto
 
 #### DEBUG版本 -DCMAKE_BUILD_TYPE=Debug
 make -j 4
+
 make install 
 
 
@@ -43,31 +48,43 @@ mysqld --initialize-insecure --user=root --basedir=/data/mysql8 --datadir=/data/
 /usr/local/mysql-8.0.26/bin/mysqld --defaults-file=/data/mysql8/my.cnf --user=root --basedir=/data/mysql8 --datadir=/data/mysql8/data --socket=/data/mysql8/mysql.sock --log-error=/data/mysql8/error/errlog.sys --binlog_group_commit_sync_delay=2000 --binlog_group_commit_sync_no_delay_count=100 --skip-stack-trace &
 
 ####   gdb DEBUG方式
-1\
-gdb /usr/local/mysql/bin/mysqld
 
-加断点
-run --defaults-file=/data/mysql8/my.cnf 
+![断点启动 mysqld](https://pic1.zhimg.com/80/v2-083a1d3b044ff3e11b63196e83debe46_720w.png)
+
+① 第一步， gdb打开DEBUG版本的mysqld
+
+gdb /usr/local/mysql/bin/mysqld (需要是DEBUG 版本)
+
+ex: gdb /usr/local/mysql-8.0.26-old/bin/mysqld
+
+② 添加好需要调试的断点（函数名或者代码行数）
+
+b trx_rseg_adjust_rollback_segments
+或者
+b /data/mysql-8.0.26/sql/conn_handler/connection_handler_per_thread.cc:301
+
+我常用5.7和8.0.26两个版本。
+
+run --defaults-file=/data/mysql8/my.cnf
+
 run --defaults-file=/data/mysql57/my.cnf 
 
+ex: run --defaults-file=/data/mysql8/my.cnf 
 // 可以不加  --skip-stack-trace
 
-2\
-gdb 
-attach pid
-或者
-gdb /usr/local/mysql/bin/mysqld pid 
 
-#### 加断点
-b mysql_execute_command
+![mysqld 启动](https://pica.zhimg.com/80/v2-f8e621f308bdb95a8b603669d4552b76_720w.png)
 
-b get_command
-b dispatch_command
-b mysql_execute_command
-b mysql_prepare_update
-b trans_commit_stmt
+至此，可以看到 mysqld启动时线程的运行情况，并且 断点在了 指定的 breakpoint，可以开始断点调试了。（注意这里mysqld服务还没有启动起来）
 
-b /roo/mysql-8.0.15/sql/sql_parse.cc:2559
+![ 常用命令](https://pic3.zhimg.com/80/v2-84e759f995714a01742514acb4b21b98_720w.png)
+
+敲finish，一直回车，直到 mysqld 启动起来。
+
+③ 客户端连接上
+
+ex: /usr/local/mysql-8.0.26-old/bin/mysql -uroot -h127.0.0.1
+
 
 # insert 
 ## 直接到InnoDB insert
@@ -93,9 +110,6 @@ Segmentation fault (core dumped)
 
 vim extra/libedit/libedit-20191231-3.1/src/terminal.c 
 area=buf; -> area=NULL;
-
-### client run
-/usr/local/mysql/bin/mysql -uroot -h127.0.0.1
 
 
 

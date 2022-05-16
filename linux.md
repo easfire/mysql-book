@@ -17,6 +17,7 @@ https://zhuanlan.zhihu.com/p/31626338
 https://cizixs.com/2017/08/25/linux-cgroup/
 
 ### TCP TIME_WAIT
+https://draveness.me/whys-the-design-tcp-time-wait/
 
 TIME_WAIT状态存在的理由：
 1）可靠地实现TCP全双工连接的终止
@@ -36,7 +37,7 @@ TIME_WAIT状态存在的理由：
 
 
 存在即是合理的，既然TCP协议能盛行四十多年，就证明他的设计合理性。所以我们尽可能的使用其原本功能。
-依靠TIME_WAIT状态来保证我的服务器程序健壮，服务功能正常。
+依靠TIME_WAIT 状态来保证我的服务器程序健壮，服务功能正常。
 那是不是就不要性能了呢？并不是。如果服务器上跑的短连接业务量到了我真的必须处理这个TIMEWAIT状态过多的问题的时候，
 我的原则是尽量处理，而不是跟TIMEWAIT干上，非先除之而后快。
 如果尽量处理了，还是解决不了问题，仍然拒绝服务部分请求，那我会采取负载均衡来抗这些高并发的短请求。持续十万并发的短连接请求，
@@ -96,6 +97,7 @@ net.ipv4.tcp_max_tw_buckets = 5000
 
 ### LVM管理
 https://www.dwhd.org/20150521_225146.html
+https://www.cnblogs.com/xibuhaohao/p/11731699.html
 
 Striped Logic Volume
 Striped LV的底层存储布局类似于RAID0，它是跨多个PV的，具体是跨多少个PV用-i指定，但是肯定不能超过VG中PV的数量，Striped LV的最大size取决于剩余PE最少的那个PV。
@@ -116,6 +118,7 @@ chunk4写入PV1
 Striped LV主要满足性能需求，没有做任何冗余，所以没有容错能力，如果单个disk损坏，就会导致数据损坏。
 
 root@hunk-virtual-machine:/home# lvcreate -L 20G --stripes 4 --stripesize 256 --name stripevol VolGroup1
+ 
  
 ### Linux共享对象之编译参数fPIC
 https://www.cnblogs.com/cswuyg/p/3830703.html
