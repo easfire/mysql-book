@@ -1,3 +1,6 @@
+### boost.MySQL
+https://anarthal.github.io/boost-mysql-docs/index.html
+
 ### build mysql-8.0 debug
 cmake3 --version
 cmake version 3.18.2

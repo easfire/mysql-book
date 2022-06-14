@@ -15,6 +15,7 @@ http://mysql.taobao.org/monthly/2016/02/01/
 按字节寻址而不是Block 
 有可能需要重新考虑现有的内存管理方案。
 
+
 ## Page类型
  SYSTEM            
  INODE             
