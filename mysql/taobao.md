@@ -89,6 +89,7 @@
 
 ### Binlog
 [MySQL · 源码分析 · 内部 XA 和组提交](http://mysql.taobao.org/monthly/2020/05/07/)
+
 [请不要用SECONDS_BEHIND_MASTER来衡量MYSQL主备的延迟时间](https://developer.aliyun.com/article/576731)
 
 ## XtraBackup
@@ -102,6 +103,7 @@
 
 ### gaopeng gtid
 [http://blog.itpub.net/7728585/cid-178179/list-11/](http://blog.itpub.net/7728585/cid-178179/list-11/)
+
 [MySQL · 引擎特性 · 基于GTID复制实现的工作原理](http://mysql.taobao.org/monthly/2020/05/09/)
 
 ### markdown
@@ -109,7 +111,9 @@
 
 ### Etcd
 [Raft算法原理](https://www.codedump.info/post/20180921-raft/)
+
 [Etcd实战课](https://time.geekbang.org/column/article/335932)
+
 [Etcd/Learner](https://etcd.io/docs/v3.3/learning/learner/)
 
 ### zookeeper
