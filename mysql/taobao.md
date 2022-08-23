@@ -85,6 +85,12 @@
 
 [XA两阶段提交(2PC)分布式事务方案详解](https://cloud.tencent.com/developer/article/1791764)
 
+[无处不在的 MySQL XA 事务](https://zhuanlan.zhihu.com/p/372300181)
+
+### Binlog
+[MySQL · 源码分析 · 内部 XA 和组提交](http://mysql.taobao.org/monthly/2020/05/07/)
+[请不要用SECONDS_BEHIND_MASTER来衡量MYSQL主备的延迟时间](https://developer.aliyun.com/article/576731)
+
 ## XtraBackup
 [MySQL · 物理备份 · Percona XtraBackup 备份原理](http://mysql.taobao.org/monthly/2016/03/07/)
 
@@ -105,4 +111,9 @@
 [Raft算法原理](https://www.codedump.info/post/20180921-raft/)
 [Etcd实战课](https://time.geekbang.org/column/article/335932)
 [Etcd/Learner](https://etcd.io/docs/v3.3/learning/learner/)
+
+### zookeeper
+[zookeeper 选主] (https://segmentfault.com/a/1190000040777791)
+
+
 
