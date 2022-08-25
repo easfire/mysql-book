@@ -117,7 +117,12 @@
 [Etcd/Learner](https://etcd.io/docs/v3.3/learning/learner/)
 
 ### zookeeper
-[zookeeper 选主] (https://segmentfault.com/a/1190000040777791)
+[zookeeper 选主](https://segmentfault.com/a/1190000040777791)
+
+### Redis Sentinel
+[Redis sentinel](https://segmentfault.com/a/1190000002680804)
+
+
 
 
 
