@@ -119,6 +119,8 @@
 ### zookeeper
 [zookeeper 选主](https://segmentfault.com/a/1190000040777791)
 
+[zk cluster 搭建](https://cloud.tencent.com/developer/article/1610867)
+
 ### Redis Sentinel
 [Redis sentinel](https://segmentfault.com/a/1190000002680804)
 
