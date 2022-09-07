@@ -124,7 +124,12 @@
 ### Redis Sentinel
 [Redis sentinel](https://segmentfault.com/a/1190000002680804)
 
+### docker 
+[docker mysql cluster](https://z.itpub.net/article/detail/FECBB8F78FB57DE3A46E88C8E3FFACCB) 
 
+[docker oceanbase](https://blog.csdn.net/qq_45392321/article/details/124521877)
 
+[docker 主从 MySQL](https://zhuanlan.zhihu.com/p/86966579)
 
-
+### kubernetes 
+[七张图了解Kubernetes内部的架构](https://zhuanlan.zhihu.com/p/149403551)
