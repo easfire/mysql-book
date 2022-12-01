@@ -133,3 +133,16 @@
 
 ### kubernetes 
 [七张图了解Kubernetes内部的架构](https://zhuanlan.zhihu.com/p/149403551)
+
+[国内环境下 Kubernetes 源码编译及运行](https://cloud.tencent.com/developer/article/1433219)
+
+[单机部署](https://feisky.gitbooks.io/kubernetes/content/deploy/single.html)
+
+[Kubernetes-部署高可用的MySQL](https://www.kubernetes.org.cn/3985.html)
+
+### 性能调优
+[百度C++工程师的那些极限优化（内存篇）](https://mp.weixin.qq.com/s?__biz=Mzg5MjU0NTI5OQ==&mid=2247489076&idx=1&sn=748bf716d94d5ed2739ea8a9385cd4a6&chksm=c03d2648f74aaf5e11298cf450c3453a273eb6d2161bc90e411b6d62fa0c1b96a45e411af805&cur_album_id=1693053794688761860&scene=189#wechat_redirect)
+
+
+
+
