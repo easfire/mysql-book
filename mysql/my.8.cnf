@@ -1,0 +1,35 @@
+[mysqld]
+character-set-server = utf8mb4
+bind_address = 0.0.0.0
+default_storage_engine = InnoDB
+socket = /data/mysql8/mysqld.sock
+sort_buffer_size = 262144
+table_open_cache = 1024
+thread_cache_size = 50
+default_authentication_plugin = mysql_native_password
+innodb_buffer_pool_size = 2055208960
+innodb_buffer_pool_instances = 4
+general-log-file = /data/mysql8/log/mysqld.log
+ 
+user=root
+basedir=/data/mysql8
+datadir=/data/mysql8/data
+socket=/data/mysql8/mysql.sock
+log-error=/data/mysql8/error/errlog.sys
+binlog_group_commit_sync_delay=2000
+binlog_group_commit_sync_no_delay_count=100
+
+#BINLOG
+log_bin = /data/mysql8/log/mysql-bin
+relay_log = /data/mysql8/log/mysqld-relay-bin
+
+max_binlog_size = 500M
+binlog_format = row
+gtid_mode = on
+read_only = off
+relay_log_purge = 1
+sync_binlog = 1
+skip_slave_start=1
+slow_query_log   = 1
+enforce-gtid-consistency = 1
+log-slave-updates = on

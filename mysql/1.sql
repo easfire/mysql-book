@@ -1,0 +1,1 @@
+ use db; CREATE TABLE `t3` (   `id` int(11) NOT NULL,   `c` int(11) DEFAULT NULL,   PRIMARY KEY (`id`) ) ENGINE=InnoDB;  delimiter ;; create procedure idata() begin   declare i int;   set i=1;   while(i<=200000) do     insert into t3 values(i,i);     set i=i+1;   end while; end;; delimiter ;  call idata();  delete from t3;  drop table t3;  select sleep(3);
